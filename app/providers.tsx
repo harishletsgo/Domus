@@ -1,41 +1,8 @@
 'use client';
 
 import { ReactNode } from 'react';
-import { WagmiConfig, createConfig, configureChains } from 'wagmi';
-import { RainbowKitProvider, getDefaultWallets } from '@rainbow-me/rainbowkit';
+import { PrivyProvider } from '@privy-io/react-auth';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { mainnet, polygon, optimism, arbitrum, sepolia, polygonMumbai } from 'wagmi/chains';
-import { alchemyProvider } from 'wagmi/providers/alchemy';
-import { publicProvider } from 'wagmi/providers/public';
-import '@rainbow-me/rainbowkit/styles.css';
-
-const { chains, publicClient, webSocketPublicClient } = configureChains(
-  [
-    mainnet,
-    polygon,
-    optimism,
-    arbitrum,
-    sepolia,
-    polygonMumbai,
-  ],
-  [
-    alchemyProvider({ apiKey: process.env.NEXT_PUBLIC_ALCHEMY_ID || '' }),
-    publicProvider(),
-  ]
-);
-
-const { connectors } = getDefaultWallets({
-  appName: 'Domus - Web3 Real Estate',
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'default-project-id',
-  chains,
-});
-
-const config = createConfig({
-  autoConnect: true,
-  connectors,
-  publicClient,
-  webSocketPublicClient,
-});
 
 const queryClient = new QueryClient();
 
@@ -45,12 +12,23 @@ interface ProvidersProps {
 
 export function Providers({ children }: ProvidersProps) {
   return (
-    <WagmiConfig config={config}>
+    <PrivyProvider
+      appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID || 'clpispdty00lu108wptiquu9r'}
+      config={{
+        loginMethods: ['wallet', 'email', 'google', 'twitter', 'discord'],
+        appearance: {
+          theme: 'light',
+          accentColor: '#0ea5e9',
+          logo: 'https://your-logo-url.com/logo.png',
+        },
+        embeddedWallets: {
+          createOnLogin: 'users-without-wallets',
+        },
+      }}
+    >
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider chains={chains}>
-          {children}
-        </RainbowKitProvider>
+        {children}
       </QueryClientProvider>
-    </WagmiConfig>
+    </PrivyProvider>
   );
 }

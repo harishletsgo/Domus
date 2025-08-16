@@ -47,8 +47,8 @@ Domus combines cutting-edge blockchain technologies to create a seamless real es
 - **TypeScript**: Type-safe development
 - **Tailwind CSS**: Utility-first styling
 - **Framer Motion**: Smooth animations
-- **RainbowKit**: Wallet connection interface
-- **Wagmi**: React hooks for Ethereum
+- **Privy**: Web3 authentication with social login support
+- **Viem**: Ethereum interaction library
 
 ### Storage
 - **Walrus**: Decentralized storage on Sui
@@ -69,7 +69,7 @@ Before you begin, ensure you have:
 - **Git**: Version control
 - **MetaMask**: Browser wallet for testing
 - **Alchemy Account**: For blockchain RPC access
-- **WalletConnect Project**: For wallet connections
+- **Privy Account**: For Web3 authentication services
 
 ## 🔧 Installation
 
@@ -94,7 +94,7 @@ Before you begin, ensure you have:
    Fill in your environment variables:
    ```env
    PRIVATE_KEY=your_private_key
-   NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id
+   NEXT_PUBLIC_PRIVY_APP_ID=your_privy_app_id
    ETHEREUM_RPC_URL=https://eth-mainnet.g.alchemy.com/v2/your-key
    POLYGON_RPC_URL=https://polygon-mainnet.g.alchemy.com/v2/your-key
    # ... other configuration
@@ -116,6 +116,32 @@ Before you begin, ensure you have:
    ```
 
 Visit `http://localhost:3000` to see the application.
+
+## 🔐 Setting Up Privy Authentication
+
+1. **Create a Privy Account**:
+   - Go to [https://console.privy.io](https://console.privy.io)
+   - Sign up for a new account
+   - Create a new app
+
+2. **Configure Your App**:
+   - Set your app domain (e.g., `localhost:3000` for development)
+   - Configure login methods (wallet, email, social)
+   - Set up your branding and appearance
+
+3. **Get Your App ID**:
+   - Copy your App ID from the Privy dashboard
+   - Add it to your `.env.local` file:
+   ```env
+   NEXT_PUBLIC_PRIVY_APP_ID=your_app_id_here
+   ```
+
+4. **Privy Features Available**:
+   - **Social Login**: Email, Google, Twitter, Discord
+   - **Wallet Connection**: MetaMask, Coinbase, WalletConnect
+   - **Embedded Wallets**: Auto-created for users without wallets
+   - **Multi-Chain Support**: Ethereum, Polygon, Arbitrum, Optimism
+   - **Progressive Onboarding**: Seamless Web2 to Web3 transition
 
 ## 🚀 Deployment
 

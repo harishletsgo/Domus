@@ -1,10 +1,165 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { usePrivy, useWallets } from '@privy-io/react-auth';
+import toast from 'react-hot-toast';
 import { Menu, X, Home, Search, Plus, User, FileText, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+function PrivyConnectButton() {
+  const { login, logout, authenticated, user } = usePrivy();
+  const { wallets } = useWallets();
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  if (!authenticated) {
+    return (
+      <button
+        onClick={login}
+        className="btn-primary"
+      >
+        Connect Wallet
+      </button>
+    );
+  }
+
+  const connectedWallet = wallets[0]; // Get the first wallet
+  const address = connectedWallet?.address;
+
+  const getChainName = (chainId: string) => {
+    const chains: { [key: string]: string } = {
+      '0x1': 'Ethereum',
+      '1': 'Ethereum',
+      '0x89': 'Polygon',
+      '137': 'Polygon',
+      '0xa4b1': 'Arbitrum',
+      '42161': 'Arbitrum',
+      '0xa': 'Optimism',
+      '10': 'Optimism',
+      '0xaa36a7': 'Sepolia',
+      '11155111': 'Sepolia',
+    };
+    return chains[chainId] || 'Unknown';
+  };
+
+  const getUserDisplayName = () => {
+    if (address) {
+      return `${address.slice(0, 6)}...${address.slice(-4)}`;
+    }
+    return user?.email?.address || user?.google?.email || user?.twitter?.username || 'User';
+  };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <div className="flex items-center space-x-2">
+        {connectedWallet && (
+          <div className="flex items-center space-x-2 bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg transition-colors duration-200">
+            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+            <span className="text-sm font-medium">
+              {getChainName(connectedWallet.chainId || '1')}
+            </span>
+          </div>
+        )}
+        
+        <button
+          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+          className="btn-primary flex items-center space-x-2"
+        >
+          <span>{getUserDisplayName()}</span>
+          <svg
+            className={`w-4 h-4 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Dropdown Menu */}
+      {isDropdownOpen && (
+        <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
+          <div className="px-4 py-3 border-b border-gray-100">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-primary-400 to-accent-400 rounded-full flex items-center justify-center">
+                <User className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <div className="font-medium text-gray-900">
+                  {getUserDisplayName()}
+                </div>
+                <div className="text-sm text-gray-500">
+                  {user?.email?.address || 'Connected via wallet'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="py-1">
+            <Link
+              href="/dashboard"
+              onClick={() => setIsDropdownOpen(false)}
+              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+            >
+              <Settings className="w-4 h-4" />
+              <span>Account Dashboard</span>
+            </Link>
+            
+            <button
+              onClick={() => {
+                // Copy address to clipboard
+                if (address) {
+                  navigator.clipboard.writeText(address);
+                  toast.success('Address copied to clipboard!');
+                } else {
+                  toast.error('No address to copy');
+                }
+                setIsDropdownOpen(false);
+              }}
+              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              <span>Copy Address</span>
+            </button>
+
+            <hr className="my-1" />
+            
+            <button
+              onClick={() => {
+                logout();
+                setIsDropdownOpen(false);
+              }}
+              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              <span>Disconnect</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -50,94 +205,7 @@ export function Navbar() {
 
           {/* Connect Wallet Button */}
           <div className="hidden md:block">
-            <ConnectButton.Custom>
-              {({
-                account,
-                chain,
-                openAccountModal,
-                openChainModal,
-                openConnectModal,
-                mounted,
-              }) => {
-                const ready = mounted;
-                const connected = ready && account && chain;
-
-                return (
-                  <div
-                    {...(!ready && {
-                      'aria-hidden': true,
-                      style: {
-                        opacity: 0,
-                        pointerEvents: 'none',
-                        userSelect: 'none',
-                      },
-                    })}
-                  >
-                    {(() => {
-                      if (!connected) {
-                        return (
-                          <button
-                            onClick={openConnectModal}
-                            className="btn-primary"
-                          >
-                            Connect Wallet
-                          </button>
-                        );
-                      }
-
-                      if (chain.unsupported) {
-                        return (
-                          <button
-                            onClick={openChainModal}
-                            className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
-                          >
-                            Wrong network
-                          </button>
-                        );
-                      }
-
-                      return (
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={openChainModal}
-                            className="flex items-center space-x-2 bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg transition-colors duration-200"
-                          >
-                            {chain.hasIcon && (
-                              <div
-                                style={{
-                                  background: chain.iconBackground,
-                                  width: 16,
-                                  height: 16,
-                                  borderRadius: 999,
-                                  overflow: 'hidden',
-                                  marginRight: 4,
-                                }}
-                              >
-                                {chain.iconUrl && (
-                                  <img
-                                    alt={chain.name ?? 'Chain icon'}
-                                    src={chain.iconUrl}
-                                    style={{ width: 16, height: 16 }}
-                                  />
-                                )}
-                              </div>
-                            )}
-                            <span className="text-sm font-medium">{chain.name}</span>
-                          </button>
-
-                          <button
-                            onClick={openAccountModal}
-                            className="btn-primary"
-                          >
-                            {account.displayName}
-                          </button>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                );
-              }}
-            </ConnectButton.Custom>
+            <PrivyConnectButton />
           </div>
 
           {/* Mobile menu button */}
@@ -178,7 +246,7 @@ export function Navbar() {
                 );
               })}
               <div className="pt-4 pb-2">
-                <ConnectButton />
+                <PrivyConnectButton />
               </div>
             </div>
           </motion.div>
