@@ -1,124 +1,105 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { propertyOperations, propertyImageOperations, propertyDocumentOperations } from '@/lib/db-utils';
 
-// Mock data for demonstration - in production, this would come from a database
-const mockProperties = [
-  {
-    id: 1,
-    title: 'Modern Oceanfront Villa',
-    location: 'Malibu, California',
-    price: '4.2 ETH',
-    priceUSD: '$12,650,000',
-    bedrooms: 6,
-    bathrooms: 8,
-    sqft: 8500,
-    type: 'RESIDENTIAL',
-    verified: true,
-    chain: 'Ethereum',
-    walrusHash: 'QmX1Y2Z3a4B5C6d7E8f9G0h1I2j3K4l5M6n7O8p9Q0r1S2t',
-    features: ['Ocean View', 'Private Beach', 'Pool', 'Garage'],
-    tokenId: 1,
-    owner: '0x1234567890123456789012345678901234567890',
-    isListed: true,
-    listedAt: Date.now() - 86400000, // 1 day ago
-  },
-  {
-    id: 2,
-    title: 'Downtown Commercial Complex',
-    location: 'Manhattan, New York',
-    price: '15.8 ETH',
-    priceUSD: '$47,850,000',
-    bedrooms: null,
-    bathrooms: 25,
-    sqft: 125000,
-    type: 'COMMERCIAL',
-    verified: true,
-    chain: 'Polygon',
-    walrusHash: 'QmA1B2C3d4E5F6g7H8i9J0k1L2m3N4o5P6q7R8s9T0u1V2w',
-    features: ['Prime Location', 'High Traffic', 'Parking', 'Elevator'],
-    tokenId: 2,
-    owner: '0x2345678901234567890123456789012345678901',
-    isListed: true,
-    listedAt: Date.now() - 172800000, // 2 days ago
-  },
-  {
-    id: 3,
-    title: 'Luxury Mountain Retreat',
-    location: 'Aspen, Colorado',
-    price: '2.1 ETH',
-    priceUSD: '$6,350,000',
-    bedrooms: 5,
-    bathrooms: 6,
-    sqft: 6200,
-    type: 'RESIDENTIAL',
-    verified: true,
-    chain: 'Arbitrum',
-    walrusHash: 'QmP1Q2R3s4T5U6v7W8x9Y0z1A2b3C4d5E6f7G8h9I0j1K2l',
-    features: ['Mountain View', 'Ski Access', 'Fireplace', 'Hot Tub'],
-    tokenId: 3,
-    owner: '0x3456789012345678901234567890123456789012',
-    isListed: true,
-    listedAt: Date.now() - 259200000, // 3 days ago
-  },
-];
-
+// GET /api/properties - Get public properties with filtering and pagination
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+    
+    // Extract query parameters
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '12');
-    const type = searchParams.get('type');
-    const minPrice = searchParams.get('minPrice');
-    const maxPrice = searchParams.get('maxPrice');
-    const location = searchParams.get('location');
-    const chain = searchParams.get('chain');
-    const verified = searchParams.get('verified');
+    const offset = (page - 1) * limit;
+    const sortBy = searchParams.get('sortBy') as 'price' | 'created' | 'featured' || 'created';
+    const sortOrder = searchParams.get('sortOrder') as 'asc' | 'desc' || 'desc';
+    const propertyType = searchParams.get('type') !== 'all' ? searchParams.get('type') || undefined : undefined;
+    const location = searchParams.get('location') || undefined;
+    const minPrice = searchParams.get('minPrice') ? parseFloat(searchParams.get('minPrice')!) : undefined;
+    const maxPrice = searchParams.get('maxPrice') ? parseFloat(searchParams.get('maxPrice')!) : undefined;
+    const search = searchParams.get('search');
 
-    let filteredProperties = [...mockProperties];
-
-    // Apply filters
-    if (type && type !== 'all') {
-      filteredProperties = filteredProperties.filter(p => p.type === type.toUpperCase());
-    }
-
+    // Extract city and state from location if provided
+    let city, state;
     if (location) {
-      filteredProperties = filteredProperties.filter(p => 
-        p.location.toLowerCase().includes(location.toLowerCase())
-      );
+      const locationParts = location.split(',');
+      if (locationParts.length === 2) {
+        city = locationParts[0].trim();
+        state = locationParts[1].trim();
+      } else {
+        city = location;
+      }
     }
 
-    if (chain && chain !== 'all') {
-      filteredProperties = filteredProperties.filter(p => p.chain === chain);
+    let result;
+
+    if (search) {
+      // If search term provided, use search function
+      const properties = await propertyOperations.searchProperties(search, { limit, offset });
+      result = { properties, total: properties.length };
+    } else {
+      // Otherwise use filtered query
+      result = await propertyOperations.getPublicProperties({
+        limit,
+        offset,
+        sortBy,
+        sortOrder,
+        propertyType,
+        city,
+        state,
+        minPrice,
+        maxPrice,
+      });
     }
 
-    if (verified === 'true') {
-      filteredProperties = filteredProperties.filter(p => p.verified);
-    }
+    // For each property, get images and format for API response
+    const propertiesWithImages = await Promise.all(
+      result.properties.map(async (property) => {
+        const images = await propertyImageOperations.getPropertyImages(property.id);
+        const primaryImage = images.find(img => img.isPrimary) || images[0];
+        
+        // Format property to match existing API structure
+        return {
+          id: property.id,
+          title: property.title,
+          location: `${property.city}, ${property.state}`,
+          price: `${property.priceEth} ETH`,
+          priceUSD: property.priceUsd ? `$${Number(property.priceUsd).toLocaleString()}` : null,
+          bedrooms: property.bedrooms,
+          bathrooms: property.bathrooms ? Number(property.bathrooms) : null,
+          sqft: property.squareFootage,
+          type: property.propertyType,
+          verified: property.isVerified,
+          chain: getChainName(property.chainId),
+          walrusHash: property.walrusHash,
+          features: property.features as string[] || [],
+          tokenId: property.tokenId,
+          owner: property.contractAddress, // Using contract address as owner for now
+          isListed: property.isListed,
+          listedAt: property.listedAt?.getTime() || property.createdAt.getTime(),
+          primaryImage: primaryImage?.imageUrl || null,
+          imageCount: images.length,
+        };
+      })
+    );
 
-    // Price filtering would require converting ETH prices to numbers
-    // This is simplified for demo purposes
-
-    // Pagination
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedProperties = filteredProperties.slice(startIndex, endIndex);
+    const totalPages = Math.ceil(result.total / limit);
 
     const response = {
-      properties: paginatedProperties,
+      properties: propertiesWithImages,
       pagination: {
         page,
         limit,
-        total: filteredProperties.length,
-        totalPages: Math.ceil(filteredProperties.length / limit),
-        hasNext: endIndex < filteredProperties.length,
+        total: result.total,
+        totalPages,
+        hasNext: page < totalPages,
         hasPrev: page > 1,
       },
       filters: {
-        type,
-        minPrice,
-        maxPrice,
+        type: propertyType,
+        minPrice: minPrice?.toString(),
+        maxPrice: maxPrice?.toString(),
         location,
-        chain,
-        verified,
+        verified: 'true', // All DB properties are considered for verification
       },
     };
 
@@ -132,33 +113,58 @@ export async function GET(request: NextRequest) {
   }
 }
 
+function getChainName(chainId: number | null): string {
+  const chains: { [key: number]: string } = {
+    1: 'Ethereum',
+    137: 'Polygon',
+    42161: 'Arbitrum',
+    10: 'Optimism',
+    11155111: 'Sepolia',
+  };
+  return chainId ? chains[chainId] || 'Unknown' : 'Unknown';
+}
+
+// POST /api/properties - Create a new property listing
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
-    // In a real implementation, this would:
-    // 1. Validate the property data
-    // 2. Verify the user is authenticated
-    // 3. Store the property in a database
-    // 4. Trigger smart contract interaction
-    // 5. Store documents in Walrus
-    
-    const newProperty = {
-      id: mockProperties.length + 1,
-      ...body,
-      tokenId: mockProperties.length + 1,
-      isListed: true,
-      verified: false, // Would be verified by a broker
-      listedAt: Date.now(),
-    };
+    const { 
+      property,
+      images = [],
+      documents = [],
+      userId 
+    } = body;
 
-    // Mock response for successful property creation
-    return NextResponse.json({
+    if (!property || !userId) {
+      return NextResponse.json(
+        { error: 'Property data and user ID are required' },
+        { status: 400 }
+      );
+    }
+
+    // Create the property
+    const newProperty = await propertyOperations.createProperty({
+      ...property,
+      ownerId: userId,
+      listedAt: new Date(),
+      priceUsd: property.priceEth ? Number(property.priceEth) * 3000 : null, // Mock USD conversion
+    });
+
+    // Add images if provided
+    if (images.length > 0) {
+      await propertyImageOperations.addPropertyImages(newProperty.id, images);
+    }
+
+    // Add documents if provided
+    if (documents.length > 0) {
+      await propertyDocumentOperations.addPropertyDocuments(newProperty.id, documents);
+    }
+
+    return NextResponse.json({ 
       success: true,
       property: newProperty,
       message: 'Property listed successfully',
     }, { status: 201 });
-    
   } catch (error) {
     console.error('Error creating property:', error);
     return NextResponse.json(

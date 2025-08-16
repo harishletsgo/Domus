@@ -235,6 +235,71 @@ export function MintingProgress({ propertyData, onComplete, onBack }: MintingPro
         const mockTxHash = '0x' + Math.random().toString(16).substring(2, 66);
         const mockTokenId = Math.floor(Math.random() * 1000).toString();
         
+        // Save property to database
+        try {
+          const response = await fetch('/api/properties', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: user?.id, // This should be the database user ID
+              property: {
+                title: propertyData.title,
+                description: propertyData.description,
+                propertyType: propertyData.propertyType,
+                country: propertyData.location.country,
+                state: propertyData.location.state,
+                city: propertyData.location.city,
+                zipCode: propertyData.location.zipCode,
+                streetAddress: propertyData.location.streetAddress,
+                latitude: propertyData.location.latitude?.toString(),
+                longitude: propertyData.location.longitude?.toString(),
+                squareFootage: propertyData.specifications.squareFootage,
+                bedrooms: propertyData.specifications.bedrooms,
+                bathrooms: propertyData.specifications.bathrooms,
+                yearBuilt: propertyData.specifications.yearBuilt,
+                lotSize: propertyData.specifications.lotSize,
+                parkingSpaces: propertyData.specifications.parkingSpaces,
+                priceEth: propertyData.price,
+                parcelId: propertyData.legalInfo.parcelId,
+                deedNumber: propertyData.legalInfo.deedNumber,
+                zoning: propertyData.legalInfo.zoning,
+                taxAssessment: propertyData.legalInfo.taxAssessment,
+                utilities: propertyData.utilities,
+                features: propertyData.features,
+                chainId: 11155111,
+                tokenId: mockTokenId,
+                transactionHash: mockTxHash,
+                walrusHash: metadataBlobId,
+                isListed: true,
+                isVerified: false,
+                isPublic: true,
+              },
+              images: imageHashes.map((hash, index) => ({
+                imageUrl: `https://walrus-storage.com/${hash}`, // Mock URL
+                walrusHash: hash,
+                isPrimary: index === 0,
+                sortOrder: index,
+              })),
+              documents: storedDocuments.map(doc => ({
+                fileName: doc.name,
+                fileType: doc.type,
+                walrusHash: doc.walrusHash,
+                fileSize: doc.size,
+                mimeType: doc.mimeType,
+                isPublic: false,
+              })),
+            }),
+          });
+
+          if (!response.ok) {
+            console.warn('Failed to save property to database:', await response.text());
+          } else {
+            console.log('Property saved to database successfully');
+          }
+        } catch (dbError) {
+          console.warn('Database save error (non-critical):', dbError);
+        }
+
         const result: MintingResult = {
           tokenId: mockTokenId,
           transactionHash: mockTxHash,
