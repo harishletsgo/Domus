@@ -24,6 +24,74 @@ export function Providers({ children }: ProvidersProps) {
         embeddedWallets: {
           createOnLogin: 'users-without-wallets',
         },
+        defaultChain: {
+          id: 11155111,
+          name: 'Sepolia',
+          network: 'sepolia',
+          nativeCurrency: {
+            decimals: 18,
+            name: 'Sepolia Ether',
+            symbol: 'SEP',
+          },
+          rpcUrls: {
+            default: {
+              http: ['https://sepolia.infura.io/v3/YOUR_INFURA_KEY'],
+            },
+            public: {
+              http: ['https://sepolia.infura.io/v3/YOUR_INFURA_KEY'],
+            },
+          },
+          blockExplorers: {
+            default: { name: 'Etherscan', url: 'https://sepolia.etherscan.io' },
+          },
+          testnet: true,
+        },
+        supportedChains: [
+          {
+            id: 11155111,
+            name: 'Sepolia',
+            network: 'sepolia',
+            nativeCurrency: {
+              decimals: 18,
+              name: 'Sepolia Ether',
+              symbol: 'SEP',
+            },
+            rpcUrls: {
+              default: {
+                http: ['https://sepolia.infura.io/v3/YOUR_INFURA_KEY'],
+              },
+              public: {
+                http: ['https://sepolia.infura.io/v3/YOUR_INFURA_KEY'],
+              },
+            },
+            blockExplorers: {
+              default: { name: 'Etherscan', url: 'https://sepolia.etherscan.io' },
+            },
+            testnet: true,
+          },
+          {
+            id: 1,
+            name: 'Ethereum',
+            network: 'homestead',
+            nativeCurrency: {
+              decimals: 18,
+              name: 'Ether',
+              symbol: 'ETH',
+            },
+            rpcUrls: {
+              default: {
+                http: ['https://mainnet.infura.io/v3/YOUR_INFURA_KEY'],
+              },
+              public: {
+                http: ['https://mainnet.infura.io/v3/YOUR_INFURA_KEY'],
+              },
+            },
+            blockExplorers: {
+              default: { name: 'Etherscan', url: 'https://etherscan.io' },
+            },
+            testnet: false,
+          },
+        ],
       }}
     >
       <QueryClientProvider client={queryClient}>

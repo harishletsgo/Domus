@@ -11,6 +11,7 @@ function PrivyConnectButton() {
   const { login, logout, authenticated, user } = usePrivy();
   const { wallets } = useWallets();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [currentChainId, setCurrentChainId] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -27,6 +28,41 @@ function PrivyConnectButton() {
     };
   }, []);
 
+  // Update chain ID when wallet changes or on mount
+  useEffect(() => {
+    const updateChainId = async () => {
+      const connectedWallet = wallets[0];
+      if (connectedWallet?.chainId) {
+        setCurrentChainId(connectedWallet.chainId);
+      } else if (window.ethereum) {
+        try {
+          const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+          setCurrentChainId(chainId);
+        } catch (error) {
+          console.error('Failed to get chain ID:', error);
+        }
+      }
+    };
+
+    updateChainId();
+
+    // Listen for chain changes
+    if (window.ethereum?.on) {
+      const handleChainChanged = (chainId: string) => {
+        setCurrentChainId(chainId);
+        console.log('Navbar: Chain changed to:', chainId);
+      };
+
+      window.ethereum.on('chainChanged', handleChainChanged);
+
+      return () => {
+        if (window.ethereum?.removeListener) {
+          window.ethereum.removeListener('chainChanged', handleChainChanged);
+        }
+      };
+    }
+  }, [wallets]);
+
   if (!authenticated) {
     return (
       <button
@@ -40,8 +76,11 @@ function PrivyConnectButton() {
 
   const connectedWallet = wallets[0]; // Get the first wallet
   const address = connectedWallet?.address;
+  
+  // Use the current chain ID from state, fallback to wallet chain ID
+  const displayChainId = currentChainId || connectedWallet?.chainId;
 
-  const getChainName = (chainId: string) => {
+  const getChainName = (chainId: string | number) => {
     const chains: { [key: string]: string } = {
       '0x1': 'Ethereum',
       '1': 'Ethereum',
@@ -53,8 +92,14 @@ function PrivyConnectButton() {
       '10': 'Optimism',
       '0xaa36a7': 'Sepolia',
       '11155111': 'Sepolia',
+      '0xaab01c': 'Sepolia', // Alternative hex format
     };
-    return chains[chainId] || 'Unknown';
+    
+    // Convert to string and handle both hex and decimal
+    const chainIdStr = chainId.toString();
+    const chainIdHex = '0x' + parseInt(chainIdStr).toString(16);
+    
+    return chains[chainIdStr] || chains[chainIdHex] || `Chain ${chainId}`;
   };
 
   const getUserDisplayName = () => {
@@ -66,15 +111,15 @@ function PrivyConnectButton() {
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <div className="flex items-center space-x-2">
-        {connectedWallet && (
-          <div className="flex items-center space-x-2 bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg transition-colors duration-200">
-            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-            <span className="text-sm font-medium">
-              {getChainName(connectedWallet.chainId || '1')}
-            </span>
-          </div>
-        )}
+              <div className="flex items-center space-x-2">
+          {connectedWallet && displayChainId && (
+            <div className="flex items-center space-x-2 bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg transition-colors duration-200">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span className="text-sm font-medium">
+                {getChainName(displayChainId)}
+              </span>
+            </div>
+          )}
         
         <button
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}

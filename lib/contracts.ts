@@ -68,11 +68,11 @@ export const CONTRACT_ADDRESSES = {
   
   // Testnets
   11155111: { // Sepolia
-    propertyNFT: '0x0000000000000000000000000000000000000000', // Deploy address
+    propertyNFT: '0x5fbdb2315678afecb367f032d93f642f64180aa3', // Mock deploy address for testing
     layerZeroEndpoint: '0x6EDCE65403992e310A62460808c4b910D972f10f',
   },
   80001: { // Mumbai
-    propertyNFT: '0x0000000000000000000000000000000000000000', // Deploy address
+    propertyNFT: '0x5fbdb2315678afecb367f032d93f642f64180aa3', // Mock deploy address for testing
     layerZeroEndpoint: '0x6EDCE65403992e310A62460808c4b910D972f10f',
   },
 } as const;

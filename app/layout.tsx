@@ -12,7 +12,11 @@ export const metadata = {
   description: 'Revolutionary Web3 real estate platform with NFT property listings, LayerZero cross-chain functionality, and Walrus decentralized storage',
   keywords: 'web3, real estate, NFT, blockchain, LayerZero, Walrus, decentralized storage',
   authors: [{ name: 'Domus Team' }],
-  viewport: 'width=device-width, initial-scale=1',
+};
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
 };
 
 export default function RootLayout({
