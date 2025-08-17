@@ -8,7 +8,7 @@ import * as schema from './schema';
 let _db: ReturnType<typeof drizzleNeon> | ReturnType<typeof drizzlePostgres> | null = null;
 let _sql: ReturnType<typeof neon> | ReturnType<typeof postgres> | null = null;
 
-function getConnection() {
+export function getConnection() {
   const connectionString = process.env.DATABASE_URL || process.env.NEON_DATABASE_URL;
 
   if (!connectionString) {

@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import toast from 'react-hot-toast';
-import { Menu, X, Home, Search, Plus, User, FileText, Settings } from 'lucide-react';
+import { Menu, X, Home, Search, Plus, User, FileText, Settings, PieChart } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function PrivyConnectButton() {
@@ -213,6 +213,7 @@ export function Navbar() {
     { href: '/', label: 'Home', icon: Home },
     { href: '/properties', label: 'Properties', icon: Search },
     { href: '/list-property', label: 'List Property', icon: Plus },
+    { href: '/fractional', label: 'Fractional', icon: PieChart },
     { href: '/dashboard', label: 'Dashboard', icon: User },
     { href: '/documents', label: 'Documents', icon: FileText },
   ];

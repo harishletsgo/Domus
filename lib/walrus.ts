@@ -69,19 +69,25 @@ export class WalrusStorage {
   private walrusAggregatorUrl: string;
   private fallbackMode: boolean = false;
 
-  // Try multiple possible Walrus endpoints
+  // Try multiple possible Walrus endpoints (updated for 2024)
   private static readonly POSSIBLE_ENDPOINTS = {
     publisher: [
       'https://publisher.walrus-testnet.walrus.space',
       'https://walrus-testnet-publisher.nodes.guru',
       'https://walrus-testnet-publisher.staketab.org',
-      'https://sui-walrus-testnet.blockeden.xyz'
+      'https://walrus-publisher-testnet.bwarelabs.com',
+      'https://sui-walrus-testnet.blockeden.xyz',
+      'https://walrus-cache-testnet.overclock.run',
+      process.env.WALRUS_PUBLISHER_URL || 'https://publisher.walrus-testnet.walrus.space'
     ],
     aggregator: [
       'https://aggregator.walrus-testnet.walrus.space',
-      'https://walrus-testnet-aggregator.nodes.guru',
+      'https://walrus-testnet-aggregator.nodes.guru', 
       'https://walrus-testnet-aggregator.staketab.org',
-      'https://sui-walrus-testnet.blockeden.xyz'
+      'https://walrus-aggregator-testnet.bwarelabs.com',
+      'https://sui-walrus-testnet.blockeden.xyz',
+      'https://walrus-cache-testnet.overclock.run',
+      process.env.WALRUS_AGGREGATOR_URL || 'https://aggregator.walrus-testnet.walrus.space'
     ]
   };
 

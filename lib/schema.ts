@@ -238,6 +238,218 @@ export const searchHistoryRelations = relations(searchHistory, ({ one }) => ({
   }),
 }));
 
+// Share tokens table - fractional ownership tokens for properties
+export const shareTokens = pgTable('share_tokens', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  propertyId: uuid('property_id').references(() => properties.id, { onDelete: 'cascade' }).notNull(),
+  ownerId: uuid('owner_id').references(() => users.id).notNull(),
+  
+  // Token information
+  contractAddress: varchar('contract_address', { length: 42 }).notNull(),
+  symbol: varchar('symbol', { length: 10 }).notNull(),
+  name: varchar('name', { length: 100 }).notNull(),
+  totalSupply: decimal('total_supply', { precision: 18, scale: 6 }).notNull(),
+  
+  // User holdings
+  userBalance: decimal('user_balance', { precision: 18, scale: 6 }).notNull(),
+  
+  // Market data
+  currentPrice: decimal('current_price', { precision: 20, scale: 8 }).notNull(), // Price in USD
+  priceChange24h: decimal('price_change_24h', { precision: 10, scale: 4 }),
+  volume24h: decimal('volume_24h', { precision: 20, scale: 8 }),
+  marketCap: decimal('market_cap', { precision: 25, scale: 8 }),
+  
+  // Trading configuration
+  isListed: boolean('is_listed').default(false),
+  canRedeem: boolean('can_redeem').default(true),
+  redemptionThreshold: decimal('redemption_threshold', { precision: 5, scale: 2 }).default('80.00'), // Percentage
+  
+  // Blockchain information
+  chainId: integer('chain_id'),
+  vaultId: varchar('vault_id', { length: 100 }),
+  layerZeroEndpoint: varchar('layerzero_endpoint', { length: 42 }),
+  
+  // Timestamps
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  propertyIdIdx: index('share_tokens_property_id_idx').on(table.propertyId),
+  ownerIdIdx: index('share_tokens_owner_id_idx').on(table.ownerId),
+  contractAddressIdx: index('share_tokens_contract_address_idx').on(table.contractAddress),
+  symbolIdx: index('share_tokens_symbol_idx').on(table.symbol),
+  isListedIdx: index('share_tokens_is_listed_idx').on(table.isListed),
+}));
+
+// Trading orders table - cross-chain trading orders
+export const tradingOrders = pgTable('trading_orders', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  orderId: varchar('order_id', { length: 100 }).unique().notNull(),
+  shareTokenId: uuid('share_token_id').references(() => shareTokens.id, { onDelete: 'cascade' }).notNull(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  
+  // Order details
+  amount: decimal('amount', { precision: 18, scale: 6 }).notNull(),
+  price: decimal('price', { precision: 20, scale: 8 }).notNull(), // Price per share in USD
+  isBuyOrder: boolean('is_buy_order').notNull(),
+  
+  // Cross-chain information
+  sourceChain: integer('source_chain').notNull(),
+  targetChain: integer('target_chain').notNull(),
+  
+  // Order status
+  status: varchar('status', { length: 20 }).notNull(), // 'pending', 'filled', 'cancelled', 'expired'
+  filledAmount: decimal('filled_amount', { precision: 18, scale: 6 }).default('0'),
+  
+  // Timestamps
+  expiration: timestamp('expiration').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  orderIdIdx: index('trading_orders_order_id_idx').on(table.orderId),
+  shareTokenIdIdx: index('trading_orders_share_token_id_idx').on(table.shareTokenId),
+  userIdIdx: index('trading_orders_user_id_idx').on(table.userId),
+  statusIdx: index('trading_orders_status_idx').on(table.status),
+  expirationIdx: index('trading_orders_expiration_idx').on(table.expiration),
+}));
+
+// Liquidity pools table - DEX liquidity pools for share tokens
+export const liquidityPools = pgTable('liquidity_pools', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  shareTokenId: uuid('share_token_id').references(() => shareTokens.id, { onDelete: 'cascade' }).notNull(),
+  
+  // Pool reserves
+  shareReserves: decimal('share_reserves', { precision: 18, scale: 6 }).notNull(),
+  usdReserves: decimal('usd_reserves', { precision: 18, scale: 6 }).notNull(),
+  totalLiquidity: decimal('total_liquidity', { precision: 18, scale: 6 }).notNull(),
+  
+  // User liquidity positions
+  userId: uuid('user_id').references(() => users.id),
+  userLiquidity: decimal('user_liquidity', { precision: 18, scale: 6 }).default('0'),
+  
+  // Pool metrics
+  apr: decimal('apr', { precision: 8, scale: 4 }).default('0'),
+  volume24h: decimal('volume_24h', { precision: 18, scale: 6 }).default('0'),
+  fees24h: decimal('fees_24h', { precision: 18, scale: 6 }).default('0'),
+  
+  // Pool configuration
+  isActive: boolean('is_active').default(true),
+  chainId: integer('chain_id').notNull(),
+  
+  // Timestamps
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  shareTokenIdIdx: index('liquidity_pools_share_token_id_idx').on(table.shareTokenId),
+  userIdIdx: index('liquidity_pools_user_id_idx').on(table.userId),
+  chainIdIdx: index('liquidity_pools_chain_id_idx').on(table.chainId),
+  isActiveIdx: index('liquidity_pools_is_active_idx').on(table.isActive),
+}));
+
+// Price oracle data table - Flare Oracle price feeds
+export const priceOracleData = pgTable('price_oracle_data', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  shareTokenId: uuid('share_token_id').references(() => shareTokens.id, { onDelete: 'cascade' }).notNull(),
+  
+  // Price data
+  price: decimal('price', { precision: 20, scale: 8 }).notNull(),
+  volume24h: decimal('volume_24h', { precision: 18, scale: 6 }),
+  marketCap: decimal('market_cap', { precision: 18, scale: 6 }),
+  priceChange24h: decimal('price_change_24h', { precision: 10, scale: 4 }),
+  
+  // Oracle metadata
+  feedId: varchar('feed_id', { length: 100 }),
+  oracleSource: varchar('oracle_source', { length: 50 }).notNull(), // 'flare', 'chainlink', 'manual'
+  confidence: decimal('confidence', { precision: 5, scale: 4 }), // Confidence score 0-1
+  
+  // Timestamps
+  timestamp: timestamp('timestamp').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  shareTokenIdIdx: index('price_oracle_data_share_token_id_idx').on(table.shareTokenId),
+  timestampIdx: index('price_oracle_data_timestamp_idx').on(table.timestamp),
+  oracleSourceIdx: index('price_oracle_data_oracle_source_idx').on(table.oracleSource),
+}));
+
+// Dividend distributions table - track dividend payments to shareholders
+export const dividendDistributions = pgTable('dividend_distributions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  shareTokenId: uuid('share_token_id').references(() => shareTokens.id, { onDelete: 'cascade' }).notNull(),
+  
+  // Distribution details
+  totalAmount: decimal('total_amount', { precision: 18, scale: 6 }).notNull(),
+  amountPerShare: decimal('amount_per_share', { precision: 18, scale: 6 }).notNull(),
+  currency: varchar('currency', { length: 10 }).default('ETH'),
+  
+  // Distribution metadata
+  distributionType: varchar('distribution_type', { length: 20 }).notNull(), // 'rental', 'sale', 'other'
+  description: text('description'),
+  
+  // Blockchain information
+  transactionHash: varchar('transaction_hash', { length: 66 }),
+  blockNumber: integer('block_number'),
+  chainId: integer('chain_id'),
+  
+  // Timestamps
+  distributedAt: timestamp('distributed_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  shareTokenIdIdx: index('dividend_distributions_share_token_id_idx').on(table.shareTokenId),
+  distributedAtIdx: index('dividend_distributions_distributed_at_idx').on(table.distributedAt),
+  distributionTypeIdx: index('dividend_distributions_distribution_type_idx').on(table.distributionType),
+}));
+
+// Add fractional ownership relations
+export const shareTokensRelations = relations(shareTokens, ({ one, many }) => ({
+  property: one(properties, {
+    fields: [shareTokens.propertyId],
+    references: [properties.id],
+  }),
+  owner: one(users, {
+    fields: [shareTokens.ownerId],
+    references: [users.id],
+  }),
+  tradingOrders: many(tradingOrders),
+  liquidityPools: many(liquidityPools),
+  priceOracleData: many(priceOracleData),
+  dividendDistributions: many(dividendDistributions),
+}));
+
+export const tradingOrdersRelations = relations(tradingOrders, ({ one }) => ({
+  shareToken: one(shareTokens, {
+    fields: [tradingOrders.shareTokenId],
+    references: [shareTokens.id],
+  }),
+  user: one(users, {
+    fields: [tradingOrders.userId],
+    references: [users.id],
+  }),
+}));
+
+export const liquidityPoolsRelations = relations(liquidityPools, ({ one }) => ({
+  shareToken: one(shareTokens, {
+    fields: [liquidityPools.shareTokenId],
+    references: [shareTokens.id],
+  }),
+  user: one(users, {
+    fields: [liquidityPools.userId],
+    references: [users.id],
+  }),
+}));
+
+export const priceOracleDataRelations = relations(priceOracleData, ({ one }) => ({
+  shareToken: one(shareTokens, {
+    fields: [priceOracleData.shareTokenId],
+    references: [shareTokens.id],
+  }),
+}));
+
+export const dividendDistributionsRelations = relations(dividendDistributions, ({ one }) => ({
+  shareToken: one(shareTokens, {
+    fields: [dividendDistributions.shareTokenId],
+    references: [shareTokens.id],
+  }),
+}));
+
 // Export types for TypeScript
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -247,3 +459,13 @@ export type PropertyImage = typeof propertyImages.$inferSelect;
 export type NewPropertyImage = typeof propertyImages.$inferInsert;
 export type PropertyDocument = typeof propertyDocuments.$inferSelect;
 export type NewPropertyDocument = typeof propertyDocuments.$inferInsert;
+export type ShareToken = typeof shareTokens.$inferSelect;
+export type NewShareToken = typeof shareTokens.$inferInsert;
+export type TradingOrder = typeof tradingOrders.$inferSelect;
+export type NewTradingOrder = typeof tradingOrders.$inferInsert;
+export type LiquidityPool = typeof liquidityPools.$inferSelect;
+export type NewLiquidityPool = typeof liquidityPools.$inferInsert;
+export type PriceOracleData = typeof priceOracleData.$inferSelect;
+export type NewPriceOracleData = typeof priceOracleData.$inferInsert;
+export type DividendDistribution = typeof dividendDistributions.$inferSelect;
+export type NewDividendDistribution = typeof dividendDistributions.$inferInsert;
