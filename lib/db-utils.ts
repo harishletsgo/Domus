@@ -193,10 +193,23 @@ export const propertyOperations = {
 
   // Get properties owned by a user
   async getUserProperties(userId: string): Promise<Property[]> {
+    // Check if userId is a Privy ID or a database UUID
+    let dbUserId = userId;
+    
+    if (userId.startsWith('did:privy:')) {
+      // It's a Privy ID, resolve it to database UUID
+      const user = await userOperations.getUserByPrivyId(userId);
+      if (!user) {
+        console.log(`User not found for Privy ID: ${userId}`);
+        return [];
+      }
+      dbUserId = user.id;
+    }
+    
     return await db
       .select()
       .from(properties)
-      .where(eq(properties.ownerId, userId))
+      .where(eq(properties.ownerId, dbUserId))
       .orderBy(desc(properties.createdAt));
   },
 

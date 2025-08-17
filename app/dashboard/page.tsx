@@ -2,12 +2,30 @@
 
 import { useState, useEffect } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
-import { ethers } from 'ethers';
-import { createPropertyNFTContract, getContractAddress, parsePropertyFromContract, Property } from '@/lib/contracts';
-import { WalrusStorage } from '@/lib/walrus';
 import { Home, MapPin, DollarSign, FileText, ExternalLink, Plus, Wallet, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+
+interface Property {
+  id: string;
+  tokenId: string;
+  title: string;
+  propertyType: string;
+  priceEth: string;
+  priceUsd: string | null;
+  location: string;
+  squareFootage: number;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  yearBuilt: number;
+  isListed: boolean;
+  isVerified: boolean;
+  primaryImage: string | null;
+  listedAt: number;
+  transactionHash: string | null;
+  walrusHash: string | null;
+  chainId: number | null;
+}
 
 export default function DashboardPage() {
   const { authenticated, login, user } = usePrivy();
@@ -17,67 +35,79 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (authenticated && wallets.length > 0) {
+    if (authenticated && user && wallets.length > 0) {
       loadUserProperties();
     }
-  }, [authenticated, wallets]);
+  }, [authenticated, user, wallets]);
 
   const loadUserProperties = async () => {
     try {
       setLoading(true);
-      const wallet = wallets[0];
-      if (!wallet?.address) return;
-
-      // Get ethers provider
-      if (!window.ethereum) {
-        throw new Error('No Ethereum wallet detected');
+      
+      if (!user?.id) {
+        throw new Error('User not authenticated');
       }
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      
-      // Get contract instance (using Sepolia testnet)
-      const contractAddress = getContractAddress(11155111, 'propertyNFT');
-      const contract = createPropertyNFTContract(contractAddress, provider);
 
-      // Get user's properties
-      const userProperties = await contract.getOwnerProperties(wallet.address);
+      // Fetch properties from database API
+      const response = await fetch(`/api/users/${user.id}/properties`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch properties: ${response.statusText}`);
+      }
       
-      // Fetch detailed property data
-      const propertyDetails = await Promise.all(
-        userProperties.map(async (tokenId: bigint) => {
-          const property = await contract.getProperty(tokenId);
-          return parsePropertyFromContract(property);
-        })
-      );
+      const data = await response.json();
+      console.log('Fetched user properties:', data);
+      
+      // Transform the data to match the expected format
+      const transformedProperties = data.properties.map((p: any) => ({
+        id: p.id,
+        tokenId: p.tokenId,
+        title: p.title,
+        propertyType: p.propertyType,
+        priceEth: p.priceEth,
+        priceUsd: p.priceUsd ? `$${Number(p.priceUsd).toLocaleString()}` : null,
+        location: `${p.city}, ${p.state}`,
+        squareFootage: p.squareFootage,
+        bedrooms: p.bedrooms,
+        bathrooms: p.bathrooms,
+        yearBuilt: p.yearBuilt,
+        isListed: p.isListed,
+        isVerified: p.isVerified,
+        primaryImage: p.primaryImage,
+        listedAt: new Date(p.listedAt).getTime(),
+        transactionHash: p.transactionHash,
+        walrusHash: p.walrusHash,
+        chainId: p.chainId,
+      }));
 
-      setProperties(propertyDetails);
-    } catch (error) {
+      setProperties(transformedProperties);
+    } catch (error: any) {
       console.error('Error loading properties:', error);
-      setError('Failed to load properties');
+      setError(error.message || 'Failed to load properties');
     } finally {
       setLoading(false);
     }
   };
 
-  const getPropertyTypeColor = (type: number) => {
-    const colors = {
-      0: 'bg-blue-100 text-blue-800', // RESIDENTIAL
-      1: 'bg-purple-100 text-purple-800', // COMMERCIAL
-      2: 'bg-gray-100 text-gray-800', // INDUSTRIAL
-      3: 'bg-green-100 text-green-800', // LAND
-      4: 'bg-orange-100 text-orange-800', // MIXED_USE
+  const getPropertyTypeColor = (type: string) => {
+    const colors: { [key: string]: string } = {
+      'RESIDENTIAL': 'bg-blue-100 text-blue-800',
+      'COMMERCIAL': 'bg-purple-100 text-purple-800',
+      'INDUSTRIAL': 'bg-gray-100 text-gray-800',
+      'LAND': 'bg-green-100 text-green-800',
+      'MIXED_USE': 'bg-orange-100 text-orange-800',
     };
-    return colors[type as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+    return colors[type] || 'bg-gray-100 text-gray-800';
   };
 
-  const getPropertyTypeName = (type: number) => {
-    const names = {
-      0: 'Residential',
-      1: 'Commercial',
-      2: 'Industrial',
-      3: 'Land',
-      4: 'Mixed Use',
+  const getPropertyTypeName = (type: string) => {
+    const names: { [key: string]: string } = {
+      'RESIDENTIAL': 'Residential',
+      'COMMERCIAL': 'Commercial',
+      'INDUSTRIAL': 'Industrial',
+      'LAND': 'Land',
+      'MIXED_USE': 'Mixed Use',
     };
-    return names[type as keyof typeof names] || 'Unknown';
+    return names[type] || 'Unknown';
   };
 
   if (!authenticated) {
@@ -150,7 +180,7 @@ export default function DashboardPage() {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Value</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {properties.reduce((sum, p) => sum + parseFloat(ethers.utils.formatEther(p.price)), 0).toFixed(2)} ETH
+                  {properties.reduce((sum, p) => sum + parseFloat(p.priceEth), 0).toFixed(2)} ETH
                 </p>
               </div>
             </div>
@@ -258,7 +288,7 @@ export default function DashboardPage() {
                     <div className="flex items-center text-gray-600 text-sm">
                       <MapPin className="w-4 h-4 mr-1" />
                       <span>
-                        {property.location.city}, {property.location.state}
+                        {property.location}
                       </span>
                     </div>
                   </div>
@@ -267,7 +297,7 @@ export default function DashboardPage() {
                     <div className="flex justify-between items-center">
                       <span className="text-gray-600">Price</span>
                       <span className="font-bold text-lg">
-                        {parseFloat(ethers.utils.formatEther(property.price)).toFixed(3)} ETH
+                        {parseFloat(property.priceEth).toFixed(3)} ETH
                       </span>
                     </div>
 
@@ -283,7 +313,7 @@ export default function DashboardPage() {
                     <div className="flex justify-between items-center">
                       <span className="text-gray-600">Documents</span>
                       <span className="text-gray-900 font-medium">
-                        {property.documentHashes.length} files
+                        0 files
                       </span>
                     </div>
                   </div>
@@ -293,7 +323,7 @@ export default function DashboardPage() {
                       View Details
                     </button>
                     <a
-                      href={`https://sepolia.etherscan.io/token/${getContractAddress(11155111, 'propertyNFT')}?a=${property.tokenId}`}
+                      href={`https://sepolia.etherscan.io/tx/${property.transactionHash}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn-primary text-sm flex items-center justify-center"
@@ -306,7 +336,7 @@ export default function DashboardPage() {
                   <div className="mt-4 pt-4 border-t border-gray-200">
                     <div className="text-xs text-gray-500">
                       <span>Walrus Hash: </span>
-                      <span className="font-mono">{property.walrusHash.slice(0, 16)}...</span>
+                      <span className="font-mono">{property.walrusHash ? property.walrusHash.slice(0, 16) + '...' : 'N/A'}</span>
                     </div>
                   </div>
                 </div>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { propertyOperations, propertyImageOperations, propertyDocumentOperations } from '@/lib/db-utils';
+import { propertyOperations, propertyImageOperations, propertyDocumentOperations, userOperations } from '@/lib/db-utils';
 
 // GET /api/properties - Get public properties with filtering and pagination
 export async function GET(request: NextRequest) {
@@ -142,10 +142,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Resolve user ID (if it's a Privy ID, get the database UUID)
+    let dbUserId = userId;
+    if (userId.startsWith('did:privy:')) {
+      const user = await userOperations.getUserByPrivyId(userId);
+      if (!user) {
+        // Create the user if they don't exist using upsertUser
+        const newUser = await userOperations.upsertUser({
+          id: userId,
+          wallet: null, // We'll set this separately if needed
+        });
+        dbUserId = newUser.id;
+      } else {
+        dbUserId = user.id;
+      }
+    }
+
     // Create the property
     const newProperty = await propertyOperations.createProperty({
       ...property,
-      ownerId: userId,
+      ownerId: dbUserId,
       listedAt: new Date(),
       priceUsd: property.priceEth ? Number(property.priceEth) * 3000 : null, // Mock USD conversion
     });
