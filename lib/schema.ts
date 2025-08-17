@@ -131,6 +131,7 @@ export const propertyDocuments = pgTable('property_documents', {
   mimeType: varchar('mime_type', { length: 100 }),
   fileSize: integer('file_size'),
   walrusHash: varchar('walrus_hash', { length: 100 }).notNull(),
+  description: text('description'),
   isPublic: boolean('is_public').default(false),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({

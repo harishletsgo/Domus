@@ -5,6 +5,7 @@ import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { Home, MapPin, DollarSign, FileText, ExternalLink, Plus, Wallet, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { PropertyDocumentsModal } from '@/components/PropertyDocumentsModal';
 
 interface Property {
   id: string;
@@ -33,6 +34,10 @@ export default function DashboardPage() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Documents modal state
+  const [showDocumentsModal, setShowDocumentsModal] = useState(false);
+  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
 
   useEffect(() => {
     if (authenticated && user && wallets.length > 0) {
@@ -322,6 +327,16 @@ export default function DashboardPage() {
                     <button className="flex-1 btn-secondary text-sm">
                       View Details
                     </button>
+                    <button
+                      onClick={() => {
+                        setSelectedProperty(property);
+                        setShowDocumentsModal(true);
+                      }}
+                      className="btn-secondary text-sm flex items-center justify-center"
+                      title="View Documents"
+                    >
+                      <FileText className="w-4 h-4" />
+                    </button>
                     <a
                       href={`https://sepolia.etherscan.io/tx/${property.transactionHash}`}
                       target="_blank"
@@ -345,6 +360,19 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Property Documents Modal */}
+      {selectedProperty && (
+        <PropertyDocumentsModal
+          isOpen={showDocumentsModal}
+          onClose={() => {
+            setShowDocumentsModal(false);
+            setSelectedProperty(null);
+          }}
+          propertyId={selectedProperty.id}
+          propertyTitle={selectedProperty.title}
+        />
+      )}
     </div>
   );
 }

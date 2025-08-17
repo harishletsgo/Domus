@@ -56,12 +56,36 @@ export function PropertyListingForm({ onSubmit }: PropertyListingFormProps) {
 
   const handleDocumentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const newDocs = files.map(file => ({
+    
+    // Validate file types
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+    const validFiles = files.filter(file => {
+      if (!allowedTypes.includes(file.type)) {
+        console.warn(`Skipping file ${file.name} - invalid type: ${file.type}`);
+        return false;
+      }
+      
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        console.warn(`Skipping file ${file.name} - too large: ${file.size} bytes`);
+        return false;
+      }
+      
+      return true;
+    });
+    
+    const newDocs = validFiles.map(file => ({
       file,
       type: 'other' as const,
       name: file.name,
     }));
     setSelectedDocuments(prev => [...prev, ...newDocs]);
+    
+    // Show warning if some files were rejected
+    if (validFiles.length !== files.length) {
+      const rejectedCount = files.length - validFiles.length;
+      console.warn(`${rejectedCount} file(s) were rejected due to invalid type or size.`);
+    }
   };
 
   const removeImage = (index: number) => {
@@ -690,11 +714,11 @@ export function PropertyListingForm({ onSubmit }: PropertyListingFormProps) {
                   </label>
                   <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-primary-400 transition-colors duration-200">
                     <FileText className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-gray-600 mb-2">Upload legal documents</p>
+                    <p className="text-gray-600 mb-2">Upload legal documents (PDF, JPG, PNG only)</p>
                     <input
                       type="file"
                       multiple
-                      accept=".pdf,.doc,.docx,.txt"
+                      accept=".pdf,.jpg,.jpeg,.png"
                       onChange={handleDocumentUpload}
                       className="hidden"
                       id="document-upload"

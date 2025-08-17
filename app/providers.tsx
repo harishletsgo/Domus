@@ -19,7 +19,7 @@ export function Providers({ children }: ProvidersProps) {
         appearance: {
           theme: 'light',
           accentColor: '#0ea5e9',
-          logo: 'https://your-logo-url.com/logo.png',
+          logo: 'https://s3.wasabisys.com/defenseark/domus/domus_logo.png',
         },
         embeddedWallets: {
           createOnLogin: 'users-without-wallets',
