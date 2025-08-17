@@ -145,6 +145,9 @@ export function MintingProgress({ propertyData, onComplete, onBack }: MintingPro
       const walrusStorage = new WalrusStorage('testnet');
       
       updateStepStatus('uploading-documents', 'active', 'Uploading documents to Walrus storage...');
+      
+      // Add a brief delay to show the step
+      await new Promise(resolve => setTimeout(resolve, 1000));
       const documentPromises = propertyData.documents.map(async (doc) => {
         const blobId = await walrusStorage.storeDocument(doc.file);
         return {
